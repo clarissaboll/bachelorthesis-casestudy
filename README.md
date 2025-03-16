@@ -32,9 +32,3 @@ These packages can be installed by running the following in your R console:
   "readxl", "DT", "shinydashboard", "plotly", "dplyr", "ggplot2", "DBI", 
   "RSQLite", "stringi", "tidyverse", "here", "tidyxl", "readr", "writexl"
 ))
-
-    ```
-- **Navigate to Your Project Directory**:
-   In **Terminal** or **RStudio**, navigate to the folder where you downloaded or cloned the project. For example:
-   ```sh
-   cd /path/to/your/project
