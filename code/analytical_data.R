@@ -1,5 +1,3 @@
-filePath <- here("data")
-
 process_analytical_files <- function(conn) {
   analyticalFiles <- get_file_names(filePath, "analytical")
   
@@ -101,22 +99,6 @@ insert_chemicals <- function(conn, analytical_data) {
   return(chemical_ids)
   }
 
-get_chemical_ids <- function(conn) {
-  query <- "SELECT chemicalid, ec_no FROM chemical;"
-  chemical_data <- dbGetQuery(conn, query)
-  return(chemical_data)
-}
-
-get_id_from_ecno <- function(conn, ec_no) {
-  query <- paste0("SELECT chemicalid FROM chemical WHERE ec_no = '", ec_no, "';")
-  result <- dbGetQuery(conn, query)
-  if (nrow(result) > 0) {
-    return(result$chemicalid[1])
-  } else {
-    return(NULL)
-  }
-}
-
 insert_analyticalData <- function(conn, analytical_data, chemical_ids) {
   chemicals_cell_info <- analytical_data$chemicals_cell_info
   sheet_names <- analytical_data$allsheetnames
@@ -131,8 +113,8 @@ insert_analyticalData <- function(conn, analytical_data, chemical_ids) {
     c_no_col <- analytical_data$sheet_data[[sheet_name]]$c_no_col
  
     for (row_num in analytical_rows) {
-      experiment <- filter_sheet_row_col(chemicals_cell_info, sheet_name, row_num, experiment_col[1])%>%
-        pull(character)
+      experiment <- filter_sheet_row_col(chemicals_cell_info, sheet_name, row_num, experiment_col)%>%
+        pull(numeric)
       ec_number <- filter_sheet_row_col(chemicals_cell_info, sheet_name, row_num, ec_no_col[1])%>%
         pull(character)
       sample <- filter_sheet_row_col(chemicals_cell_info, sheet_name, row_num, sample_col[1])%>%
