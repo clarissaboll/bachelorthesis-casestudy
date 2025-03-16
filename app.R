@@ -248,7 +248,18 @@ server <- function(input, output, session) {
       theme_minimal()
   })
   
-  
+  output$groupsPerStudy <- renderPlot({
+  groups_data <- dbGetQuery(conn, "SELECT study_id, COUNT(*) as group_count FROM groups GROUP BY study_id")
+
+  # Plot the number of groups per study
+  ggplot(groups_data, aes(x = as.factor(study_id), y = group_count, fill = as.factor(study_id))) +
+    geom_bar(stat = "identity") +
+    labs(title = "Number of Groups per Study", x = "Study ID", y = "Number of Groups") +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    scale_fill_brewer(palette = "Set2") 
+})
+
   
   output$bubblePlot <- renderPlotly({
     counts <- tableCounts()
