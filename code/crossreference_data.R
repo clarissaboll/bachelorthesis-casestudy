@@ -1,3 +1,4 @@
+filePath <- here("data")
 process_crossreference_files <- function(conn) {
   # Get a list of all cross-reference files from the given directory
   crossreferenceFiles <- get_file_names(filePath, "crossreference")
