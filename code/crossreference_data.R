@@ -1,5 +1,3 @@
-filePath <- here("data")
-
 process_crossreference_files <- function(conn) {
   crossreferenceFiles <- get_file_names(filePath, "crossreference")
   create_crossreference_table(conn)
@@ -13,8 +11,6 @@ process_crossreference_data <- function(file, conn) {
   crossreferenceSheet <- excel_sheets(full_file_path)
   
   crossreference_data <- get_cell_infos(full_file_path, crossreferenceSheet)
-  create_crossreference_table(conn)
-  
   substudy_col <- get_col_start(crossreference_data, "study")
   sample_col <- get_col_start(crossreference_data, "sample")
   ec_col <- get_col_start(crossreference_data, "ec")
