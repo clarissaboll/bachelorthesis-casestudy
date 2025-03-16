@@ -1,3 +1,4 @@
+filePath <- here("data")
 process_analytical_files <- function(conn) {
   # Retrieve all file names related to analytical data
   analyticalFiles <- get_file_names(filePath, "analytical")
