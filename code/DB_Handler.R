@@ -101,7 +101,7 @@ create_analyticaldata_table <- function(conn) {
     method TEXT NOT NULL,
     c_number TEXT,
     sample_date DATE,
-    experiment TEXT,
+    experiment INTEGER,
     FOREIGN KEY(chemical_id) REFERENCES chemical(chemicalid),
     UNIQUE (chemical_id, method, c_number)
   );"
