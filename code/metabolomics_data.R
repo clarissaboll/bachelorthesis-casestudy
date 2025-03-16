@@ -1,0 +1,157 @@
+filePath <- here("data")
+
+process_metabolomics_files <- function(conn) {
+  metabolomicsFiles <- get_file_names(filePath, "metabolom")
+  create_metabolomics_table(conn)
+  for (file in metabolomicsFiles) {
+    insert_metabolomics(file, conn)
+  }
+}
+
+insert_metabolomics <- function(file, conn) {
+  
+  full_file_path <- file.path(filePath, file)
+  allsheetnames <- excel_sheets(full_file_path)
+  metabolomics_cells_info <- get_cell_infos(full_file_path, allsheetnames)
+  print("checkpoint1")
+  all_metabolomics <- list()
+  
+  for (sheet_name in allsheetnames) {
+    
+    metabolome_cells_info <- get_cell_infos(full_file_path, sheet_name)
+    
+    animal_id_row <- get_header_position(metabolome_cells_info, sheet_name, "animal") %>% 
+      pull(row) %>% first()
+    alias_id_row <- get_header_position(metabolome_cells_info, sheet_name, "alias") %>% 
+      pull(row) %>% first()
+    analyte_id_row <- get_header_position(metabolome_cells_info, sheet_name, "analyte") %>% 
+      pull(row) %>% first()
+    metabolite_row <- get_header_position(metabolome_cells_info, sheet_name, "metabolite") %>% 
+      pull(row) %>% first()
+    substudy_row <- get_header_position(metabolome_cells_info, sheet_name, "substudy") %>% 
+      pull(row) %>% first()
+    starting_row <- get_header_position(metabolome_cells_info, sheet_name, "analyte|metabolite|alias") %>% 
+      pull(row) %>% unique()
+    
+    analyte_id_col <- get_header_position(metabolome_cells_info, sheet_name, "analyte") %>% 
+      pull(col)
+    metabolite_col <- get_header_position(metabolome_cells_info, sheet_name, "metabolite") %>% 
+      pull(col)
+    print("checkpoint2")
+    filled_rows <- get_filled_rows(metabolome_cells_info, sheet_name, starting_row + 1)
+    print("checkpoint2.01")
+    filled_cols <- get_filled_cols(metabolome_cells_info, sheet_name, 3)
+    
+    analyte_info <- get_analyte_info(metabolome_cells_info, sheet_name, filled_rows, analyte_id_col, metabolite_col, analyte_id_row, metabolite_row)
+    animal_ids <- get_animal_ids(conn)
+    print("checkpoint2.1")
+    for (i in seq_along(filled_cols)) {
+      current_col <- filled_cols[i]
+      
+      substudy <- filter_character_from_row_col(metabolome_cells_info, sheet_name, substudy_row, current_col)
+      animal_name <- filter_character_from_row_col(metabolome_cells_info, sheet_name, animal_id_row, current_col)
+      print("checkpoint2.2")
+      animalid <- animal_ids %>%
+        filter(animalname == animal_name) %>%
+        pull(animalid)
+      print("checkpoint2.3")
+      aliasid <- filter_sheet_row_col(metabolome_cells_info, sheet_name, alias_id_row, current_col) %>%
+        pull(numeric) %>%
+        as.integer()
+      print("checkpoint3")
+      for (current_row in filled_rows) {
+        
+        if ("analyte_id" %in% colnames(analyte_info)) {
+          analyteid <- analyte_info %>%
+            filter(row == current_row) %>%
+            pull(analyte_id)
+        } else {
+          analyteid <- NA 
+        }
+        
+        if ("metabolite_name" %in% colnames(analyte_info)) {
+          metabolitename <- analyte_info %>%
+            filter(row == current_row) %>%
+            pull(metabolite_name)
+        } else {
+          metabolitename <- NA
+        }
+        
+        value <- filter_sheet_row_col(metabolome_cells_info, sheet_name, current_row, current_col) %>%
+          pull(numeric)
+        print("checkpoint4")
+        all_metabolomics <- append(all_metabolomics, list(
+          list(
+            animal_id = animalid,
+            metabolite_name = metabolitename,
+            value = value,
+            analyte_id = analyteid, 
+            alias_id = aliasid,
+            substudy = substudy
+          )
+        ))
+      }
+    }
+  }
+  
+  metabolomics_df <- bind_rows(all_metabolomics)
+  
+  if (nrow(metabolomics_df) > 0) {
+    dbWriteTable(conn, "metabolomics_data", metabolomics_df, append = TRUE, row.names = FALSE)
+  }
+}
+
+
+get_header_position <- function(metabolome_cells_info, Metabolomesheetname, name) {
+  return(metabolome_cells_info %>%
+           filter(sheet == Metabolomesheetname) %>%
+           filter(grepl(name, character, ignore.case = TRUE)))
+  
+}
+
+get_filled_rows <- function(metabolome_cells_info, current_sheet, start) {
+  return(metabolome_cells_info %>%
+           filter(sheet == current_sheet) %>%
+           filter(is_blank == FALSE) %>%
+           filter(row >= start) %>%
+           pull(row) %>%
+           unique())
+}
+
+get_filled_cols <- function(metabolome_cells_info, current_sheet, start) {
+  return(metabolome_cells_info %>%
+           filter(sheet == current_sheet) %>%
+           filter(is_blank == FALSE) %>%
+           filter(col >= start) %>%
+           pull(col) %>%
+           unique())
+}
+
+get_analyte_info <- function(metabolome_cells_info, current_sheet, filled_rows, analyte_id_col, metabolite_col, analyte_id_row, metabolite_row) {
+  valid_cols <- c(analyte_id_col, metabolite_col)
+
+  if (length(valid_cols) > 0) {
+    valid_cols <- valid_cols[!is.na(valid_cols)]  
+  }
+  
+  analyte_info <- metabolome_cells_info %>%
+    filter(sheet == current_sheet) %>%
+    filter(row %in% filled_rows) %>%  
+    filter(col %in% valid_cols) %>%  
+    select(row, col, character) %>% 
+    pivot_wider(names_from = col, values_from = character, names_prefix = "col_") 
+  
+  column_mappings <- c()
+  
+  if (!is.na(analyte_id_row)) {
+    column_mappings[paste0("col_", analyte_id_col)] <- "analyte_id"
+  }
+  if (!is.na(metabolite_row)) {
+    column_mappings[paste0("col_", metabolite_col)] <- "metabolite_name"
+  }
+  analyte_info <- analyte_info %>%
+    rename_with(~ column_mappings[.x], names(column_mappings))
+  
+  
+  return(analyte_info)
+}
