@@ -1,3 +1,4 @@
+filePath <- here("data")
 process_metabolomics_files <- function(conn) {
   # Get all metabolomics file names in the specified directory
   metabolomicsFiles <- get_file_names(filePath, "metabolom")
