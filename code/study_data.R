@@ -1,5 +1,3 @@
-filePath <- here("data")
-
 process_study_files <- function(conn) {
   studyFiles <- get_file_names(filePath, "study")
   create_study_tables(conn)
@@ -24,13 +22,13 @@ prepare_study_data <- function(studyFile) {
     select(sheet, row, character) %>%
     mutate(
       sex = case_when(
-        grepl("male", character, ignore.case = TRUE) ~ "male",
         grepl("female", character, ignore.case = TRUE) ~ "female",
+        grepl("male", character, ignore.case = TRUE) ~ "male",
         TRUE ~ NA_character_
       )
     )
   grouprowstarts <- study_cells_info %>% 
-    filter(grepl("G\\s*\\d+\\s*\\d+\\s*[A-Za-z]+\\s*/\\s*[^/]+\\s*/\\s*[^/]+", character, perl = TRUE)) %>% 
+    filter(grepl("^G\\d+$", character, perl = TRUE)) %>% 
     select(sheet, row, character)%>%
     mutate(
       split_info = strsplit(character, " "),
@@ -41,12 +39,12 @@ prepare_study_data <- function(studyFile) {
       dose = sapply(split_name_dose, function(x) x[2])
     )
   
-  list(
+  return(list(
     tablerowstarts = tablerowstarts,
     study_cells_info = study_cells_info, 
     all_sheetnames = allsheetnames,
     grouprowstarts = grouprowstarts
-  )
+  ))
 }
 
 
@@ -69,8 +67,6 @@ process_groups <- function(conn, study_data) {
   
   return(group_df_ids)
 }
-
-
 
 
 process_animals <- function(conn, study_data, group_ids) {
@@ -103,9 +99,7 @@ process_animals <- function(conn, study_data, group_ids) {
           sex = sex
         )
       ))
-      
     }
-
   }
   animal_df <- bind_rows(all_animals)
   animal_df_ids <- insert_animals_batch(conn, animal_df, studyid)
@@ -188,8 +182,6 @@ process_endpoints <- function(conn, study_data, animal_ids) {
           value = as.character(value),
           unit = as.character(endpoint_info$endpoint_unit)
         )))
-        
-       
       }
     }
   }
@@ -199,8 +191,6 @@ process_endpoints <- function(conn, study_data, animal_ids) {
   }
   
 }
-
-
 
 
 get_endpoint_value <- function(endpoint) {
