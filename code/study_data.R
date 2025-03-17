@@ -1,3 +1,4 @@
+filePath <- here("data")
 process_study_files <- function(conn) {
   studyFiles <- get_file_names(filePath, "study")
   create_study_tables(conn)
